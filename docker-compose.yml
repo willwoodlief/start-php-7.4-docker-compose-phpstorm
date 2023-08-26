@@ -1,0 +1,57 @@
+version: '3.7'
+
+volumes:
+  pcomp_mysql_data:
+    name: "pcomp_db"
+
+networks:
+  pcomp_network:
+
+services:
+
+  webserver:
+    build:
+      context: ./docker
+    ports:
+      - "${PCOMP_PHP_WEBSERVER_PORT}:80"
+    volumes:
+      - ./:/var/www/html
+    environment:
+      XDEBUG_CONFIG: remote_host=host.docker.internal
+    networks:
+      - pcomp_network
+    restart: on-failure
+    # bash docker/post-composer.sh
+    # execute in container after container running
+
+  db_pcomp:
+    image: mysql:5.7
+    ports:
+      - "3306:3306"
+    expose:
+      - "3306"
+    volumes:
+      - pcomp_mysql_data:/var/lib/mysql
+    environment:
+      MYSQL_DATABASE: "${PCOMP_DATABASE_NAME}"
+      MYSQL_ROOT_PASSWORD: "${PCOMP_DATABASE_ROOT_PW}"
+      MYSQL_USER: "${PCOMP_DATABASE_USER_NAME}"
+      MYSQL_PASSWORD: "${PCOMP_DATABASE_USER_PW}"
+    networks:
+      - pcomp_network
+    restart: always
+
+  phpmyadmin:
+    depends_on:
+      - db_pcomp
+    image: phpmyadmin:latest
+    restart: always
+    ports:
+      - "${PCOMP_PHP_ADMIN_PORT}:80"
+    environment:
+      PMA_HOST: db_pcomp
+      MYSQL_ROOT_PASSWORD: "${PCOMP_DATABASE_ROOT_PW}"
+      UPLOAD_LIMIT: "1G"
+      MEMORY_LIMIT: "1G"
+    networks:
+      - pcomp_network
